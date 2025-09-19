@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+// import { useAuth } from '../hooks/useAuth';
 import { ACTIVITY_STATES, getActivityConfig } from '../utils/activityConfig';
+import { apiService } from '../utils/api';
 import universityIcon from '../assets/images/university.png';
 import flashIcon from '../assets/images/Flashnumber.png';
 import logoutIcon from '../assets/images/Logout.png';
@@ -11,6 +13,7 @@ import teachingIcon from '../assets/images/teaching.png';
 export default function DynamicActivity() {
   const navigate = useNavigate();
   const { activityId } = useParams();
+  // const { user } = useAuth();
 
   // Debug log to verify component is loading
   console.log('DynamicActivity component loaded with activityId:', activityId);
@@ -23,6 +26,9 @@ export default function DynamicActivity() {
   const [activityConfig, setActivityConfig] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [questionNumber, setQuestionNumber] = useState(0);
+  const [assignedQuestions, setAssignedQuestions] = useState([]);
+  // const [loading, setLoading] = useState(false);
+  const [currentQuestionData, setCurrentQuestionData] = useState(null);
 
   // New flash game states
   const [isFlashMode, setIsFlashMode] = useState(false);
@@ -31,6 +37,30 @@ export default function DynamicActivity() {
   const [correctSum, setCorrectSum] = useState(0);
   const [totalNumbers, setTotalNumbers] = useState(10);
   const [numberDisplayTime, setNumberDisplayTime] = useState(800);
+
+  // Fetch assigned questions from API
+  useEffect(() => {
+    const fetchAssignedQuestions = async () => {
+      try {
+        // setLoading(true);
+
+        // Get student ID from user data or use a default
+        // const studentId = user?.student_id || user?.id || 'STU001';
+
+        const response = await apiService.get('/assign-questions/');
+        const data = response.data || {};
+        setAssignedQuestions(data.assigned_questions || []);
+      } catch (error) {
+        console.error('Failed to fetch assigned questions:', error);
+        // Fallback to empty array if API fails
+        setAssignedQuestions([]);
+      } finally {
+        // setLoading(false);
+      }
+    };
+
+    fetchAssignedQuestions();
+  }, []);
 
   // Initialize activity configuration
   useEffect(() => {
@@ -48,37 +78,169 @@ export default function DynamicActivity() {
     }
   }, [activityId, navigate]);
 
-  const generateNumberSequence = useCallback(() => {
-    const sequence = [];
-    let sum = 0;
+  const generateNumberSequence = useCallback(
+    (questionData = null) => {
+      // Use current question data if provided, otherwise use assigned questions
+      const question =
+        questionData ||
+        (assignedQuestions.length > 0
+          ? assignedQuestions[questionNumber]
+          : null);
 
-    for (let i = 0; i < totalNumbers; i++) {
-      // Generate numbers from 1 to 9 for easier mental math
-      const number = Math.floor(Math.random() * 9) + 1;
-      sequence.push(number);
-      sum += number;
-    }
+      if (question) {
+        // Extract numbers from question properties (a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t)
+        const sequence = [];
+        const letters = [
+          'a',
+          'b',
+          'c',
+          'd',
+          'e',
+          'f',
+          'g',
+          'h',
+          'i',
+          'j',
+          'k',
+          'l',
+          'm',
+          'n',
+          'o',
+          'p',
+          'q',
+          'r',
+          's',
+          't',
+        ];
 
-    return { sequence, sum };
-  }, [totalNumbers]);
+        for (const letter of letters) {
+          if (question[letter] !== undefined && question[letter] !== null) {
+            const num = parseFloat(question[letter]);
+            if (!isNaN(num)) {
+              sequence.push(num);
+            }
+          }
+        }
 
-  const startFlashSequence = useCallback(() => {
-    const { sequence, sum } = generateNumberSequence();
-    setNumberSequence(sequence);
-    setCorrectSum(sum);
-    setCurrentNumberIndex(0);
-    setTimeLeft(numberDisplayTime);
-    setCurrentState(ACTIVITY_STATES.GAME);
-  }, [generateNumberSequence, numberDisplayTime]);
+        if (sequence.length > 0) {
+          const sum =
+            parseFloat(question.answer) || sequence.reduce((a, b) => a + b, 0);
+          return { sequence, sum, questionData: question };
+        }
+      }
+
+      // Fallback to generated numbers if no API data
+      const sequence = [];
+      let sum = 0;
+
+      for (let i = 0; i < totalNumbers; i++) {
+        // Generate numbers from 1 to 9 for easier mental math
+        const number = Math.floor(Math.random() * 9) + 1;
+        sequence.push(number);
+        sum += number;
+      }
+
+      return { sequence, sum, questionData: null };
+    },
+    [totalNumbers, assignedQuestions, questionNumber]
+  );
+
+  const startFlashSequence = useCallback(
+    (questionData = null) => {
+      const {
+        sequence,
+        sum,
+        questionData: currentQData,
+      } = generateNumberSequence(questionData);
+      setNumberSequence(sequence);
+      setCorrectSum(sum);
+      setCurrentQuestionData(currentQData);
+      setCurrentNumberIndex(0);
+
+      // Use speed from question data, convert to milliseconds
+      const speedInMs = currentQData?.speed
+        ? currentQData.speed * 1000
+        : numberDisplayTime;
+      setTimeLeft(speedInMs);
+      setCurrentState(ACTIVITY_STATES.GAME);
+    },
+    [generateNumberSequence, numberDisplayTime]
+  );
 
   const startGame = useCallback(() => {
     if (!activityConfig) return;
 
+    // Use assigned questions if available, otherwise fallback to generated questions
+    if (
+      assignedQuestions.length > 0 &&
+      questionNumber < assignedQuestions.length
+    ) {
+      const question = assignedQuestions[questionNumber];
+
+      // For flash number game, we'll use the sequence from generateNumberSequence
+      if (isFlashMode) {
+        const { sequence, sum } = generateNumberSequence();
+        setCurrentQuestion({
+          question: `Sum of: ${sequence.join(' + ')}`,
+          answer: sum.toString(),
+          type: 'flash_number',
+        });
+      } else {
+        // For other activities, create a question from the data
+        const letters = [
+          'a',
+          'b',
+          'c',
+          'd',
+          'e',
+          'f',
+          'g',
+          'h',
+          'i',
+          'j',
+          'k',
+          'l',
+          'm',
+          'n',
+          'o',
+          'p',
+          'q',
+          'r',
+          's',
+          't',
+        ];
+        const numbers = letters
+          .map(letter => question[letter])
+          .filter(num => num !== undefined && num !== null);
+
+        setCurrentQuestion({
+          question: `Calculate: ${numbers.join(' + ')}`,
+          answer:
+            question.answer ||
+            numbers
+              .reduce((a, b) => parseFloat(a) + parseFloat(b), 0)
+              .toString(),
+          type: 'math_practice',
+        });
+      }
+
+      setTimeLeft(activityConfig.timeLimit);
+      setQuestionNumber(questionNumber + 1);
+      return;
+    }
+
+    // Fallback to generated question
     const question = activityConfig.generateQuestion();
     setCurrentQuestion(question);
     setTimeLeft(activityConfig.timeLimit);
     setQuestionNumber(questionNumber + 1);
-  }, [activityConfig, questionNumber]);
+  }, [
+    activityConfig,
+    questionNumber,
+    assignedQuestions,
+    isFlashMode,
+    generateNumberSequence,
+  ]);
 
   // Handle countdown
   useEffect(() => {
@@ -89,13 +251,23 @@ export default function DynamicActivity() {
       return () => clearTimeout(timer);
     } else if (currentState === ACTIVITY_STATES.COUNTDOWN && countdown === 0) {
       if (isFlashMode) {
-        startFlashSequence();
+        // Start flash sequence with current question data
+        const currentQuestionData = assignedQuestions[questionNumber];
+        startFlashSequence(currentQuestionData);
       } else {
         setCurrentState(ACTIVITY_STATES.GAME);
         startGame();
       }
     }
-  }, [currentState, countdown, isFlashMode, startFlashSequence, startGame]);
+  }, [
+    currentState,
+    countdown,
+    isFlashMode,
+    startFlashSequence,
+    startGame,
+    assignedQuestions,
+    questionNumber,
+  ]);
 
   // Handle flash sequence timer
   useEffect(() => {
@@ -110,11 +282,15 @@ export default function DynamicActivity() {
       timeLeft <= 0
     ) {
       // Move to next number or end flashing
-      if (currentNumberIndex < totalNumbers - 1) {
+      if (currentNumberIndex < numberSequence.length - 1) {
         // Brief pause between numbers
         setTimeout(() => {
           setCurrentNumberIndex(currentNumberIndex + 1);
-          setTimeLeft(numberDisplayTime);
+          // Use speed from current question data, convert to milliseconds
+          const speedInMs = currentQuestionData?.speed
+            ? currentQuestionData.speed * 1000
+            : numberDisplayTime;
+          setTimeLeft(speedInMs);
         }, 100);
       } else {
         // End of flash sequence
@@ -128,7 +304,8 @@ export default function DynamicActivity() {
     timeLeft,
     isFlashMode,
     currentNumberIndex,
-    totalNumbers,
+    numberSequence.length,
+    currentQuestionData,
     numberDisplayTime,
   ]);
 
@@ -155,19 +332,44 @@ export default function DynamicActivity() {
     setScore(0);
     setQuestionNumber(0);
     setUserAnswer('');
+    setCurrentQuestionData(null);
   };
 
   const handleAnswerSubmit = e => {
     if (e.key === 'Enter' && userAnswer.trim()) {
       if (isFlashMode) {
         // Flash game mode - check sum
-        const userSum = parseInt(userAnswer.trim());
+        const userSum = parseFloat(userAnswer.trim());
         const isCorrect = userSum === correctSum;
-        setScore(isCorrect ? 1 : 0);
-        setCurrentState(ACTIVITY_STATES.GAME_OVER);
-        setTimeout(() => {
-          setCurrentState(ACTIVITY_STATES.CONGRATULATIONS);
-        }, 2000);
+
+        // Store the answer for this question
+        // Store answer data (removed detailed results display)
+        // const answerData = {
+        //   questionNumber: questionNumber + 1,
+        //   questionData: currentQuestionData,
+        //   userAnswer: userSum,
+        //   correctAnswer: correctSum,
+        //   isCorrect: isCorrect,
+        // };
+
+        if (isCorrect) {
+          setScore(score + 1);
+        }
+
+        // Check if there are more questions
+        if (questionNumber + 1 < assignedQuestions.length) {
+          // Move to next question
+          setQuestionNumber(questionNumber + 1);
+          setUserAnswer('');
+          setCurrentState(ACTIVITY_STATES.COUNTDOWN);
+          setCountdown(3);
+        } else {
+          // All questions completed
+          setCurrentState(ACTIVITY_STATES.GAME_OVER);
+          setTimeout(() => {
+            setCurrentState(ACTIVITY_STATES.CONGRATULATIONS);
+          }, 2000);
+        }
       } else {
         // Regular mode - check individual question
         const isCorrect = activityConfig.validateAnswer(
@@ -254,7 +456,7 @@ export default function DynamicActivity() {
         if (isFlashMode) {
           return (
             <div className="flex flex-col items-center justify-center h-full">
-              <div className="text-8xl font-bold text-red-600 mb-8">
+              <div className="text-9xl font-bold text-red-600 mb-8">
                 {numberSequence[currentNumberIndex]}
               </div>
             </div>
@@ -262,7 +464,7 @@ export default function DynamicActivity() {
         } else {
           return (
             <div className="flex flex-col items-center justify-center h-full">
-              <div className="text-8xl font-bold text-red-600 mb-8">
+              <div className="text-9xl font-bold text-red-600 mb-8">
                 {currentQuestion?.question}
               </div>
               <div className="w-32 h-4 bg-gray-200 rounded-full mb-4">
@@ -286,16 +488,19 @@ export default function DynamicActivity() {
             <div className="flex items-center justify-center h-full">
               {/* Center content */}
               <div className="flex flex-col items-center">
-                <input
-                  type="number"
-                  value={userAnswer}
-                  onChange={e => setUserAnswer(e.target.value)}
-                  onKeyPress={handleAnswerSubmit}
-                  placeholder="YOUR ANSWER HERE"
-                  className="w-80 h-24 text-center text-5xl font-bold border-4 border-blue-500 rounded-lg focus:outline-none focus:border-blue-700 bg-gray-100 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-2xl placeholder:text-gray-400"
-                  autoFocus
-                />
-                <p className="text-lg text-gray-600 mt-4 italic">
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={userAnswer}
+                    onChange={e => setUserAnswer(e.target.value)}
+                    onKeyPress={handleAnswerSubmit}
+                    placeholder="YOUR ANSWER HERE"
+                    className="w-80 h-24 text-center text-5xl font-bold border-4 border-blue-500 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg transition-all duration-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none placeholder:text-2xl placeholder:text-blue-300"
+                    autoFocus
+                  />
+                  <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400/10 to-purple-400/10 pointer-events-none"></div>
+                </div>
+                <p className="text-lg text-blue-600 mt-6 italic font-medium bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
                   Press "ENTER" to continue
                 </p>
               </div>
@@ -304,16 +509,19 @@ export default function DynamicActivity() {
         } else {
           return (
             <div className="flex flex-col items-center justify-center h-full">
-              <input
-                type="text"
-                value={userAnswer}
-                onChange={e => setUserAnswer(e.target.value)}
-                onKeyPress={handleAnswerSubmit}
-                placeholder="YOUR ANSWER HERE"
-                className="w-96 h-16 text-center text-2xl font-bold border-2 border-blue-500 rounded-lg focus:outline-none focus:border-blue-700"
-                autoFocus
-              />
-              <p className="text-lg text-gray-600 mt-4 italic">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={userAnswer}
+                  onChange={e => setUserAnswer(e.target.value)}
+                  onKeyPress={handleAnswerSubmit}
+                  placeholder="YOUR ANSWER HERE"
+                  className="w-96 h-16 text-center text-2xl font-bold border-3 border-blue-500 rounded-xl focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-lg transition-all duration-300 placeholder:text-blue-300"
+                  autoFocus
+                />
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-blue-400/10 to-purple-400/10 pointer-events-none"></div>
+              </div>
+              <p className="text-lg text-blue-600 mt-6 italic font-medium bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
                 Press "ENTER" to continue
               </p>
             </div>
@@ -364,8 +572,10 @@ export default function DynamicActivity() {
               <span className="text-sm font-bold text-black">DASHBOARD</span>
             </button>
 
-            <h2 className="text-4xl font-bold mb-8">Congratulation</h2>
-            <div className="flex flex-row items-center justify-center mb-8 gap-48">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-4 sm:mb-6 lg:mb-8">
+              Congratulation
+            </h2>
+            <div className="flex flex-col sm:flex-row items-center justify-center mb-4 sm:mb-6 lg:mb-8 gap-4 sm:gap-8 lg:gap-12 xl:gap-24 2xl:gap-48">
               <div className="flex flex-col items-center">
                 <img
                   src={flashIcon}
@@ -375,15 +585,20 @@ export default function DynamicActivity() {
                 <span className="text-gray-600 font-serif">Start Again</span>
               </div>
               <div className="flex flex-col items-center">
-                <img src={awardIcon} alt="Award" className="w-56 h-56 mb-2" />
-                <span className="text-gray-600 font-serif mb-2 text-3xl">
+                <img
+                  src={awardIcon}
+                  alt="Award"
+                  className="w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 lg:w-56 lg:h-56 mb-2"
+                />
+                <span className="text-gray-600 font-serif mb-2 text-lg sm:text-xl lg:text-2xl xl:text-3xl">
                   Your Scored
                 </span>
-                <div className="text-8xl font-bold text-red-600 mb-2">
+                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-bold text-red-600 mb-2">
                   {score}
                 </div>
-                <span className="text-gray-600 font-serif text-2xl">
-                  Out of {activityConfig?.maxScore || 30}
+                <span className="text-gray-600 font-serif text-sm sm:text-base lg:text-lg xl:text-xl 2xl:text-2xl">
+                  Out of{' '}
+                  {assignedQuestions.length || activityConfig?.maxScore || 30}
                 </span>
               </div>
               <div className="flex flex-col items-center">
@@ -437,8 +652,8 @@ export default function DynamicActivity() {
       </div>
 
       {/* Main content area */}
-      <div className="relative z-10 min-h-screen flex items-center justify-center p-8">
-        <div className="bg-[#fefefe] rounded-3xl shadow-lg w-full max-w-4xl min-h-[80vh] p-8 flex flex-col relative">
+      <div className="relative z-10 min-h-screen flex items-center justify-center p-2 xs:p-3 sm:p-4 md:p-6 lg:p-8">
+        <div className="bg-[#fefefe] rounded-2xl sm:rounded-3xl shadow-lg w-full max-w-4xl min-h-[75vh] sm:min-h-[80vh] p-3 xs:p-4 sm:p-6 md:p-8 flex flex-col relative">
           {/* Header */}
           {currentState === ACTIVITY_STATES.READY && (
             <div className="flex justify-between items-start mb-8">

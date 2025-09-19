@@ -50,18 +50,54 @@ export const AuthProvider = ({ children }) => {
   }, [checkAuth]);
 
   const login = async credentials => {
-    // MOCKED LOGIN: No network call
-    const { email, password } = credentials;
-    if (email === 'KarimJindani@gmail.com' && password === 'Test123') {
-      setUser({ email });
+    try {
+      setLoading(true);
       setError(null);
-      return { success: true };
-    } else {
-      setError('Invalid username or password');
+
+      // Try API login first
+      try {
+        const response = await apiService.post('/auth/login', credentials);
+        const { accessToken, refreshToken, user: userData } = response.data;
+
+        localStorage.setItem(process.env.REACT_APP_AUTH_TOKEN_KEY, accessToken);
+        localStorage.setItem(
+          process.env.REACT_APP_REFRESH_TOKEN_KEY,
+          refreshToken
+        );
+
+        setUser(userData);
+        return { success: true };
+      } catch (apiError) {
+        console.warn('API login failed, trying fallback:', apiError);
+
+        // Fallback to hardcoded credentials for development
+        const { email, password } = credentials;
+        if (email === 'KarimJindani@gmail.com' && password === 'Test123') {
+          setUser({
+            email,
+            student_id: 'STU001',
+            id: 'STU001',
+            name: 'Karim Jindani',
+          });
+          setError(null);
+          return { success: true };
+        } else {
+          setError('Invalid username or password');
+          return {
+            success: false,
+            error: 'Invalid username or password',
+          };
+        }
+      }
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || 'Login failed';
+      setError(errorMessage);
       return {
         success: false,
-        error: 'Invalid username or password',
+        error: errorMessage,
       };
+    } finally {
+      setLoading(false);
     }
   };
 

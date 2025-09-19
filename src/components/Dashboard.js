@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import worksheetsImg from '../assets/images/Worksheets.png';
 import flashnumberImg from '../assets/images/Flashnumber.png';
 import reportsImg from '../assets/images/Reports.png';
@@ -6,24 +8,54 @@ import LogoutImg from '../assets/images/Logout.png';
 import profileImg from '../assets/images/Profile.png';
 import notificationImg from '../assets/images/Notifications.png';
 import logsImg from '../assets/images/Logs.png';
-import { useNavigate } from 'react-router-dom';
 import UnderConstruction from './common/UnderConstruction';
-
-const dashboardItems = [
-  { label: 'Worksheets', img: worksheetsImg },
-  { label: 'Flash Number', img: flashnumberImg },
-
-  { label: 'Reports', img: reportsImg },
-  { label: 'Profile', img: profileImg },
-  { label: 'Notifications', img: notificationImg },
-  { label: 'Logs', img: logsImg },
-];
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [showUnderConstruction, setShowUnderConstruction] = useState(false);
+  const [dashboardItems, setDashboardItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // Set dashboard items directly (no API call)
+  useEffect(() => {
+    setLoading(true);
+
+    // Use hardcoded dashboard items
+    const defaultItems = [
+      { label: 'Worksheets', img: worksheetsImg, route: '/worksheets' },
+      {
+        label: 'Flash Number',
+        img: flashnumberImg,
+        route: '/flash-number-game',
+      },
+      { label: 'Reports', img: reportsImg, route: '/reports' },
+      { label: 'Profile', img: profileImg, route: '/profile' },
+      {
+        label: 'Notifications',
+        img: notificationImg,
+        route: '/notifications',
+      },
+      { label: 'Logs', img: logsImg, route: '/logs' },
+    ];
+
+    setDashboardItems(defaultItems);
+    setLoading(false);
+  }, [user]);
+
   // Debug: Log when Dashboard renders
   console.log('Dashboard rendered');
+
+  if (loading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-yellow-50 p-4">
+        <div className="text-2xl font-bold text-gray-600">
+          Loading dashboard...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-yellow-50 p-4">
       <div
