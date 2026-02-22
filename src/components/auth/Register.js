@@ -29,7 +29,8 @@ const Register = () => {
 
     try {
       const base =
-        process.env.REACT_APP_API_BASE_URL || 'https://tme-backend-production.up.railway.app/api';
+        process.env.REACT_APP_API_BASE_URL ||
+        'https://tme-backend-production.up.railway.app/api';
       await axios.post(`${base}/v1/auth/register`, {
         username,
         email,

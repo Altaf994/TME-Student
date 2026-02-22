@@ -3,7 +3,9 @@ import { toast } from 'react-hot-toast';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'https://tme-backend-production.up.railway.app/api',
+  baseURL:
+    process.env.REACT_APP_API_BASE_URL ||
+    'https://tme-backend-production.up.railway.app/api',
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 10000,
   headers: {
     'Content-Type': 'application/json',
