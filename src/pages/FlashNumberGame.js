@@ -131,7 +131,7 @@ export default function FlashNumberGame() {
           Array.isArray(assignments) &&
           assignments.length > 0 ? (
             assignments.map(group => {
-              const firstQ = group.questions && group.questions[0];
+              
               return (
                 <div
                   key={group.title}
