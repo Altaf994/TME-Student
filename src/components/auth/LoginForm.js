@@ -1,3 +1,14 @@
+// Sample login API usage:
+// curl -X POST http://localhost:3000/api/v1/auth/login \
+//   -H "Content-Type: application/json" \
+//   -d '{
+//     "username": "yourUsername",
+//     "password": "YourPassword123!"
+//   }'
+
+// Parameters:
+//   username: string (required)
+//   password: string (required)
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -7,14 +18,14 @@ import schoolImage from '../../assets/images/university.png';
 const LoginForm = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleLogin = async e => {
     e.preventDefault();
     setError('');
-    const result = await login({ email, password });
+    const result = await login({ username, password });
     if (result.success) {
       toast.success('Login successful!');
       navigate('/dashboard');
@@ -54,14 +65,14 @@ const LoginForm = () => {
                 )}
                 <div>
                   <label className="block text-sm font-medium text-black mb-2">
-                    Email Address:
+                    Username:
                   </label>
                   <input
-                    type="email"
+                    type="text"
                     className="w-full px-3 py-2 border border-blue-300 rounded-md bg-white text-black placeholder-gray-400 italic focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="yourname@example.com"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    placeholder="Username"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
                   />
                 </div>
 

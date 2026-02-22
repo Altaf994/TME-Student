@@ -3,7 +3,7 @@ import { toast } from 'react-hot-toast';
 
 // Create axios instance
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:8000/api',
+  baseURL: process.env.REACT_APP_API_BASE_URL || 'http://127.0.0.1:3000/api',
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -13,8 +13,17 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   config => {
-    const token = localStorage.getItem(process.env.REACT_APP_AUTH_TOKEN_KEY);
-    if (token) {
+    const tokenKey = process.env.REACT_APP_AUTH_TOKEN_KEY || 'access_token';
+    const token = localStorage.getItem(tokenKey);
+    console.log('[apiService] Token Key:', tokenKey);
+    console.log('[apiService] Access Token:', token);
+    // Only set Authorization if not explicitly disabled
+    if (
+      token &&
+      (typeof config.headers.Authorization === 'undefined' ||
+        config.headers.Authorization === null ||
+        config.headers.Authorization === '')
+    ) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -58,7 +67,7 @@ api.interceptors.response.use(
         // Refresh token failed, redirect to login
         localStorage.removeItem(process.env.REACT_APP_AUTH_TOKEN_KEY);
         localStorage.removeItem(process.env.REACT_APP_REFRESH_TOKEN_KEY);
-        window.location.href = '/login';
+        // window.location.href = '/login';
       }
     }
 

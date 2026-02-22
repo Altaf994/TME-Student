@@ -9,6 +9,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import NotFound from './components/common/NotFound';
 import LoginForm from './components/auth/LoginForm';
 import ForgetPassword from './components/auth/ForgetPassword';
+import Register from './components/auth/Register';
 import Dashboard from './components/Dashboard';
 import FlashNumberGame from './pages/FlashNumberGame';
 import DynamicActivity from './pages/DynamicActivity';
@@ -55,6 +56,15 @@ function App() {
                     element={
                       <ProtectedRoute requireAuth={false}>
                         <ForgetPassword />
+                      </ProtectedRoute>
+                    }
+                  />
+
+                  <Route
+                    path="/register"
+                    element={
+                      <ProtectedRoute requireAuth={false}>
+                        <Register />
                       </ProtectedRoute>
                     }
                   />

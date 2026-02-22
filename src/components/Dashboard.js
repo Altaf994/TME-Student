@@ -12,7 +12,7 @@ import UnderConstruction from './common/UnderConstruction';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [showUnderConstruction, setShowUnderConstruction] = useState(false);
   const [dashboardItems, setDashboardItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,7 +63,13 @@ const Dashboard = () => {
         style={{ minHeight: '70vh' }}
       >
         {/* Logout button */}
-        <button className="absolute top-4 right-4 md:top-6 md:right-6 flex flex-col items-center group focus:outline-none hover:scale-105 transition-transform">
+        <button
+          className="absolute top-4 right-4 md:top-6 md:right-6 flex flex-col items-center group focus:outline-none hover:scale-105 transition-transform"
+          onClick={() => {
+            if (typeof logout === 'function') logout();
+            navigate('/login');
+          }}
+        >
           <img
             src={LogoutImg}
             alt="Logout"
@@ -107,22 +113,22 @@ const Dashboard = () => {
                     : item.label === 'Reports'
                       ? () => {
                           console.log('Reports button clicked');
-                          navigate('/reports');
+                          setShowUnderConstruction(true);
                         }
                       : item.label === 'Worksheets'
                         ? () => {
                             console.log('Worksheets button clicked');
-                            navigate('/worksheets');
+                            setShowUnderConstruction(true);
                           }
                         : item.label === 'Profile'
                           ? () => {
                               console.log('Profile button clicked');
-                              navigate('/profile');
+                              setShowUnderConstruction(true);
                             }
                           : item.label === 'Notifications'
                             ? () => {
                                 console.log('Notifications button clicked');
-                                navigate('/notifications');
+                                setShowUnderConstruction(true);
                               }
                             : item.label === 'Logs'
                               ? () => {

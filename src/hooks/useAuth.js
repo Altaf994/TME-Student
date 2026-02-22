@@ -1,3 +1,4 @@
+import axios from 'axios';
 import {
   useState,
   useEffect,
@@ -44,102 +45,75 @@ export const AuthProvider = ({ children }) => {
     }
   }, [logout]);
 
-  // Check if user is authenticated on mount
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
   const login = async credentials => {
+    setLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      setError(null);
+      // Use correct endpoint, no trailing slash, and /v1 included
+      const response = await axios.post(
+        'http://localhost:3000/api/v1/auth/login',
+        credentials,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      const { token, refresh_token, user: userData, teacherId } = response.data;
 
-      // Try API login first
-      try {
-        const response = await apiService.post('/auth/login', credentials);
-        const { accessToken, refreshToken, user: userData } = response.data;
-
-        localStorage.setItem(process.env.REACT_APP_AUTH_TOKEN_KEY, accessToken);
+      console.log('Access Token:', token);
+      localStorage.setItem(process.env.REACT_APP_AUTH_TOKEN_KEY, token);
+      if (refresh_token) {
         localStorage.setItem(
           process.env.REACT_APP_REFRESH_TOKEN_KEY,
-          refreshToken
+          refresh_token
         );
-
-        setUser(userData);
-        return { success: true };
-      } catch (apiError) {
-        console.warn('API login failed, trying fallback:', apiError);
-
-        // Fallback to hardcoded credentials for development
-        const { email, password } = credentials;
-        if (email === 'KarimJindani@gmail.com' && password === 'Test123') {
-          setUser({
-            email,
-            student_id: 'STU001',
-            id: 'STU001',
-            name: 'Karim Jindani',
-          });
-          setError(null);
-          return { success: true };
-        } else {
-          setError('Invalid username or password');
-          return {
-            success: false,
-            error: 'Invalid username or password',
-          };
-        }
       }
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || 'Login failed';
-      setError(errorMessage);
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    } finally {
-      setLoading(false);
-    }
-  };
 
-  const register = async userData => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const response = await apiService.post('/auth/register', userData);
-      const { accessToken, refreshToken, user: newUser } = response.data;
-
-      localStorage.setItem(process.env.REACT_APP_AUTH_TOKEN_KEY, accessToken);
-      localStorage.setItem(
-        process.env.REACT_APP_REFRESH_TOKEN_KEY,
-        refreshToken
-      );
-
-      setUser(newUser);
+      // Set user info if available, else fallback to username only
+      setUser(userData || { username: credentials.username, teacherId });
       return { success: true };
-    } catch (error) {
-      setError(error.response?.data?.message || 'Registration failed');
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Registration failed',
-      };
+    } catch (apiError) {
+      console.warn('API login failed:', apiError);
+
+      // Fallback for hardcoded dev credentials
+      const { username, password } = credentials;
+      if (username === 'KarimJindani@gmail.com' && password === 'Test123') {
+        setUser({
+          username,
+          student_id: 'STU001',
+          id: 'STU001',
+          name: 'Karim Jindani',
+        });
+        setError(null);
+        return { success: true };
+      } else {
+        const errorMessage =
+          apiError.response?.data?.message || 'Invalid username or password';
+        setError(errorMessage);
+        return { success: false, error: errorMessage };
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const updateProfile = async profileData => {
+    setLoading(true);
     try {
-      setLoading(true);
       const response = await apiService.put('/auth/profile', profileData);
       setUser(response.data);
       return { success: true };
     } catch (error) {
-      setError(error.response?.data?.message || 'Profile update failed');
-      return {
-        success: false,
-        error: error.response?.data?.message || 'Profile update failed',
-      };
+      const errorMessage =
+        error.response?.data?.message || 'Profile update failed';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
     }
@@ -150,7 +124,6 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     login,
-    register,
     logout,
     updateProfile,
     isAuthenticated: !!user,
