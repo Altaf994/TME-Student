@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { apiService } from '../utils/api';
 import flashNumberIcon from '../assets/images/Flashnumber.png';
 import logoutIcon from '../assets/images/Logout.png';
 import universityIcon from '../assets/images/university.png';
@@ -56,8 +56,8 @@ export default function FlashNumberGame() {
     const fetchAssignments = async () => {
       try {
         const config = { headers: { 'Content-Type': 'application/json' } };
-        const response = await axios.get(
-          'http://localhost:3000/api/v1/assignments/grouped',
+        const response = await apiService.get(
+          '/v1/assignments/grouped',
           config
         );
         if (mounted) setAssignments(response.data);

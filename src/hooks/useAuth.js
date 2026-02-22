@@ -1,4 +1,3 @@
-import axios from 'axios';
 import {
   useState,
   useEffect,
@@ -54,16 +53,8 @@ export const AuthProvider = ({ children }) => {
     setError(null);
 
     try {
-      // Use correct endpoint, no trailing slash, and /v1 included
-      const response = await axios.post(
-        'http://localhost:3000/api/v1/auth/login',
-        credentials,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        }
-      );
+      // Use apiService so baseURL and auth headers are applied
+      const response = await apiService.post('/v1/auth/login', credentials);
       const { token, refresh_token, user: userData, teacherId } = response.data;
 
       console.log('Access Token:', token);

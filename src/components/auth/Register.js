@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import { apiService } from '../../utils/api';
 import { toast } from 'react-hot-toast';
 import schoolImage from '../../assets/images/university.png';
 
@@ -28,10 +28,7 @@ const Register = () => {
     }
 
     try {
-      const base =
-        process.env.REACT_APP_API_BASE_URL ||
-        'https://tme-backend-production.up.railway.app/api';
-      await axios.post(`${base}/v1/auth/register`, {
+      await apiService.post('/v1/auth/register', {
         username,
         email,
         firstName,
