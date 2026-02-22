@@ -51,6 +51,9 @@
     "format": "prettier --write src/**/*.{js,jsx,ts,tsx,css,md,json}",
     "prepare": "husky install"
   },
+  "engines": {
+    "node": ">=18"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
